@@ -10,61 +10,62 @@ class FormularioScreen extends StatefulWidget {
 
 class _FormularioScreenState extends State<FormularioScreen> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _cedulaController = TextEditingController();
-  final TextEditingController _nombresController = TextEditingController();
-  final TextEditingController _apellidosController = TextEditingController();
-  final TextEditingController _fechaController = TextEditingController();
-  final TextEditingController _edadController = TextEditingController();
 
+  // Controladores de texto
+  final TextEditingController _controlController = TextEditingController();
+  final TextEditingController _curpController = TextEditingController();
+  final TextEditingController _nombreController = TextEditingController();
+  final TextEditingController _apellidoPaternoController = TextEditingController();
+  final TextEditingController _apellidoMaternoController = TextEditingController();
+  final TextEditingController _usuarioController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  // Variables de estado
   String? _genero;
-  String? _estadoCivil;
+  String _estadoSeleccionado = "Aguascalientes";
 
-  void _calcularEdad(DateTime fechaNacimiento) {
-    final hoy = DateTime.now();
-    int edad = hoy.year - fechaNacimiento.year;
-    if (hoy.month < fechaNacimiento.month ||
-        (hoy.month == fechaNacimiento.month && hoy.day < fechaNacimiento.day)) {
-      edad--;
-    }
-    _edadController.text = edad.toString();
-  }
+  // Fecha (día, mes, año)
+  DateTime _fechaSeleccionada = DateTime(1950, 1, 1);
 
-  Future<void> _seleccionarFechaNacimiento() async {
-    final DateTime? fechaSeleccionada = await showDatePicker(
+  void _seleccionarFecha(BuildContext context) async {
+    final DateTime? fecha = await showDatePicker(
       context: context,
-      initialDate: DateTime(2000),
+      initialDate: _fechaSeleccionada,
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
+      locale: const Locale('es', 'ES'),
     );
-
-    if (fechaSeleccionada != null) {
-      _fechaController.text = DateFormat('yyyy-MM-dd').format(fechaSeleccionada);
-      _calcularEdad(fechaSeleccionada);
+    if (fecha != null) {
+      setState(() {
+        _fechaSeleccionada = fecha;
+      });
     }
   }
 
-  void _enviarFormulario() {
-    if (_formKey.currentState!.validate() &&
-        _genero != null &&
-        _estadoCivil != null) {
+  void _generarCURP() {
+    if (_nombreController.text.isEmpty ||
+        _apellidoPaternoController.text.isEmpty ||
+        _apellidoMaternoController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Formulario válido y enviado correctamente')),
+        const SnackBar(content: Text('Completa nombre y apellidos antes de generar CURP')),
       );
+      return;
+    }
 
-      _formKey.currentState!.reset();
-      _cedulaController.clear();
-      _nombresController.clear();
-      _apellidosController.clear();
-      _fechaController.clear();
-      _edadController.clear();
+    setState(() {
+      _curpController.text =
+          "${_apellidoPaternoController.text.substring(0, 2).toUpperCase()}${_apellidoMaternoController.text.substring(0, 1).toUpperCase()}${_nombreController.text.substring(0, 2).toUpperCase()}${_fechaSeleccionada.year}";
+    });
+  }
 
-      setState(() {
-        _genero = null;
-        _estadoCivil = null;
-      });
+  void _guardarFormulario() {
+    if (_formKey.currentState!.validate() && _genero != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Datos guardados correctamente')),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor completa todos los campos')),
+        const SnackBar(content: Text('Completa todos los campos requeridos')),
       );
     }
   }
@@ -117,7 +118,7 @@ class _FormularioScreenState extends State<FormularioScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text(
-                    "Formulario",
+                    "Registro de Usuario",
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 26,
@@ -125,144 +126,181 @@ class _FormularioScreenState extends State<FormularioScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
+
+                  // Nº CONTROL
                   TextFormField(
-                    controller: _cedulaController,
+                    controller: _controlController,
                     keyboardType: TextInputType.number,
-                    decoration: _inputDecoration("Cédula", Icons.badge),
+                    decoration: _inputDecoration("N° Control", Icons.badge),
                     style: const TextStyle(color: Colors.white),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Campo requerido';
-                      if (value.length < 10) return 'Cédula inválida';
-                      return null;
-                    },
+                    validator: (value) =>
+                        value == null || value.isEmpty ? 'Campo requerido' : null,
                   ),
                   const SizedBox(height: 16),
+
+                  // CURP + BOTÓN
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _curpController,
+                          decoration: _inputDecoration("CURP", Icons.credit_card),
+                          style: const TextStyle(color: Colors.white),
+                          validator: (value) =>
+                              value == null || value.isEmpty ? 'Campo requerido' : null,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: _generarCURP,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blueAccent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text("Generar"),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // NOMBRES
                   TextFormField(
-                    controller: _nombresController,
-                    decoration: _inputDecoration("Nombres", Icons.person),
+                    controller: _nombreController,
+                    decoration: _inputDecoration("Nombre(s)", Icons.person),
+                    style: const TextStyle(color: Colors.white),
+                    validator: (value) =>
+                        value == null || value.isEmpty ? 'Campo requerido' : null,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // APELLIDOS
+                  TextFormField(
+                    controller: _apellidoPaternoController,
+                    decoration: _inputDecoration("Apellido Paterno", Icons.person_outline),
                     style: const TextStyle(color: Colors.white),
                     validator: (value) =>
                         value == null || value.isEmpty ? 'Campo requerido' : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
-                    controller: _apellidosController,
-                    decoration: _inputDecoration("Apellidos", Icons.person_outline),
-                    style: const TextStyle(color: Colors.white),
-                    validator: (value) =>
-                        value == null || value.isEmpty ? 'Campo requerido' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _fechaController,
-                    readOnly: true,
-                    decoration: _inputDecoration("Fecha de nacimiento", Icons.date_range),
-                    style: const TextStyle(color: Colors.white),
-                    onTap: _seleccionarFechaNacimiento,
-                    validator: (value) =>
-                        value == null || value.isEmpty ? 'Selecciona una fecha' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _edadController,
-                    readOnly: true,
-                    decoration: _inputDecoration("Edad", Icons.numbers),
+                    controller: _apellidoMaternoController,
+                    decoration: _inputDecoration("Apellido Materno", Icons.person_outline),
                     style: const TextStyle(color: Colors.white),
                   ),
                   const SizedBox(height: 16),
 
-                  // GÉNERO CON ICONOS
+                  // USUARIO Y PASSWORD
+                  TextFormField(
+                    controller: _usuarioController,
+                    decoration: _inputDecoration("Usuario", Icons.account_circle),
+                    style: const TextStyle(color: Colors.white),
+                    validator: (value) =>
+                        value == null || value.isEmpty ? 'Campo requerido' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: true,
+                    decoration: _inputDecoration("Password", Icons.lock),
+                    style: const TextStyle(color: Colors.white),
+                    validator: (value) =>
+                        value == null || value.isEmpty ? 'Campo requerido' : null,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // GÉNERO
                   Row(
                     children: [
-                      const Icon(Icons.male, color: Colors.blueAccent),
-                      Radio<String>(
-                        value: 'Masculino',
-                        groupValue: _genero,
-                        onChanged: (value) => setState(() => _genero = value),
-                      ),
-                      const Text("Masculino", style: TextStyle(color: Colors.white)),
-                      const SizedBox(width: 20),
-                      const Icon(Icons.female, color: Colors.pinkAccent),
+                      const Text("Género:", style: TextStyle(color: Colors.white)),
+                      const SizedBox(width: 12),
                       Radio<String>(
                         value: 'Femenino',
                         groupValue: _genero,
                         onChanged: (value) => setState(() => _genero = value),
                       ),
                       const Text("Femenino", style: TextStyle(color: Colors.white)),
+                      Radio<String>(
+                        value: 'Masculino',
+                        groupValue: _genero,
+                        onChanged: (value) => setState(() => _genero = value),
+                      ),
+                      const Text("Masculino", style: TextStyle(color: Colors.white)),
                     ],
                   ),
-
                   const SizedBox(height: 16),
 
-                  // ESTADO CIVIL CON ICONO
+                  // FECHA
                   Row(
-                    children: const [
-                      Icon(Icons.favorite, color: Colors.redAccent),
-                      SizedBox(width: 8),
-                      Text("Estado Civil", style: TextStyle(color: Colors.white, fontSize: 16)),
+                    children: [
+                      Expanded(
+                        child: Text(
+                          "Fecha: ${DateFormat('dd / MMMM / yyyy').format(_fechaSeleccionada)}",
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => _seleccionarFecha(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blueAccent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text("Seleccionar"),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  RadioListTile<String>(
-                    title: const Text("Soltero", style: TextStyle(color: Colors.white)),
-                    value: 'Soltero',
-                    groupValue: _estadoCivil,
-                    onChanged: (value) => setState(() => _estadoCivil = value),
-                    secondary: const Icon(Icons.person, color: Colors.blueAccent),
+                  const SizedBox(height: 16),
+
+                  // ESTADO
+                  DropdownButtonFormField<String>(
+                    value: _estadoSeleccionado,
+                    dropdownColor: const Color(0xFF101233),
+                    items: const [
+                      DropdownMenuItem(value: "Aguascalientes", child: Text("Aguascalientes")),
+                      DropdownMenuItem(value: "Baja California", child: Text("Baja California")),
+                      DropdownMenuItem(value: "Chiapas", child: Text("Chiapas")),
+                      DropdownMenuItem(value: "Jalisco", child: Text("Jalisco")),
+                      DropdownMenuItem(value: "CDMX", child: Text("Ciudad de México")),
+                    ],
+                    onChanged: (value) => setState(() => _estadoSeleccionado = value!),
+                    style: const TextStyle(color: Colors.white),
+                    decoration: _inputDecoration("Estado", Icons.map),
                   ),
-                  RadioListTile<String>(
-                    title: const Text("Casado", style: TextStyle(color: Colors.white)),
-                    value: 'Casado',
-                    groupValue: _estadoCivil,
-                    onChanged: (value) => setState(() => _estadoCivil = value),
-                    secondary: const Icon(Icons.group, color: Colors.greenAccent),
-                  ),
-                  RadioListTile<String>(
-                    title: const Text("Viudo", style: TextStyle(color: Colors.white)),
-                    value: 'Viudo',
-                    groupValue: _estadoCivil,
-                    onChanged: (value) => setState(() => _estadoCivil = value),
-                    secondary: const Icon(Icons.person_off, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _enviarFormulario,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                      elevation: 0,
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                    ).copyWith(
-                      backgroundColor: MaterialStateProperty.resolveWith((states) => null),
-                      foregroundColor: MaterialStateProperty.all(Colors.white),
-                    ),
-                    child: Ink(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF00B4DB), Color(0xFF8E2DE2)],
-                        ),
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: Container(
-                        alignment: Alignment.center,
-                        constraints: const BoxConstraints(minWidth: 150, minHeight: 45),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.send, size: 20),
-                            SizedBox(width: 8),
-                            Text("Enviar", style: TextStyle(fontSize: 16)),
-                          ],
+
+                  const SizedBox(height: 32),
+
+                  // BOTONES
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _guardarFormulario,
+                        icon: const Icon(Icons.save),
+                        label: const Text("Guardar"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.greenAccent[400],
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextButton.icon(
-                    onPressed: _salir,
-                    icon: const Icon(Icons.exit_to_app, color: Colors.blueAccent),
-                    label: const Text("Salir", style: TextStyle(color: Colors.blueAccent)),
+                      ElevatedButton.icon(
+                        onPressed: _salir,
+                        icon: const Icon(Icons.exit_to_app),
+                        label: const Text("Salir"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
